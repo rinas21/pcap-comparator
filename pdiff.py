@@ -227,7 +227,6 @@ def serialize(packet):
 
     return serial
 
-
 def read_dump(pcap_file):
     """
     Read PCAP file
@@ -240,10 +239,14 @@ def read_dump(pcap_file):
         sys.stdout.write("Reading file " + pcap_file + ":\n")
         sys.stdout.flush()
 
-    with PcapReader(pcap_file) as pcap_reader:
-        for packet in pcap_reader:
-            count += 1
-            dump[serialize(packet)] = packet
+    try:
+        with PcapReader(pcap_file) as pcap_reader:
+            for packet in pcap_reader:
+                count += 1
+                dump[serialize(packet)] = packet
+    except Exception as e:
+        sys.stderr.write(f"Error reading file {pcap_file}: {str(e)}\n")
+        sys.exit(1)
 
     if not be_quiet:
         sys.stdout.write("Found " + str(count) + " packets\n\n")
