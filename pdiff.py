@@ -1,4 +1,5 @@
 import sys
+import logging
 import getopt
 from scapy.all import PcapReader, wrpcap, Packet, NoPayload
 
