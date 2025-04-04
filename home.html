@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>PCAP Diff</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        h1 {
+            color: #333;
+        }
+        form {
+            margin-bottom: 20px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        table, th, td {
+            border: 1px solid #ccc;
+        }
+        th, td {
+            padding: 10px;
+            text-align: left;
+        }
+        th {
+            background-color: #f4f4f4;
+        }
+        .error {
+            color: red;
+            font-weight: bold;
+        }
+        .success {
+            color: green;
+            font-weight: bold;
+        }
+        .filter-container {
+            margin-top: 20px;
+            margin-bottom: 20px;
+        }
+        .filter-container input, .filter-container select {
+            padding: 8px;
+            margin-right: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Upload PCAP Files</h1>
+    <form id="pcapForm">
+        <label for="file1">File 1:</label>
+        <input type="file" name="file1" id="file1" required>
+        <br><br>
+        <label for="file2">File 2:</label>
+        <input type="file" name="file2" id="file2" required>
+        <br><br>
+        <button type="submit">Compare</button>
+    </form>
+
+    <div id="outputContainer">
+        <h2>Comparison Results</h2>
+        <div id="outputMessage"></div>
+
+        <!-- Filter Section -->
+        <div class="filter-container" style="display: none;" id="filterContainer">
+            <label for="filter">Filter by:</label>
+            <select id="filterCriteria">
+                <option value="all">All</option>
+                <option value="source-ip">Source IP</option>
+                <option value="ttl">TTL</option>
+                <option value="checksum">Checksum</option>
+            </select>
+            <input type="text" id="filterInput" placeholder="Enter filter value">
+            <button id="applyFilter">Apply Filter</button>
+        </div>
+
+        <!-- Results Table -->
+        <table id="outputTable" style="display: none;">
+            <thead>
+                <tr>
+                    <th>Packet</th>
+                    <th>Details</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+    </div>
+
+    <script>
+        document.getElementById('pcapForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+
+            const outputMessage = document.getElementById('outputMessage');
+            const outputTable = document.getElementById('outputTable');
+            const outputTableBody = outputTable.querySelector('tbody');
+            const filterContainer = document.getElementById('filterContainer');
+
+            // Clear previous results
+            outputMessage.textContent = '';
+            outputTableBody.innerHTML = '';
+            outputTable.style.display = 'none';
+            filterContainer.style.display = 'none';
+
+            try {
+                const response = await fetch('http://127.0.0.1:5000/diff', {  // Use full URL
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const result = await response.json();
+                console.log('Backend Response:', result);  // Debugging: Log the response
+
+                if (result.error) {
+                    outputMessage.textContent = `Error: ${result.error}`;
+                    outputMessage.className = 'error';
+                } else {
+                    const diffLines = result.output.split('\n').filter(line => line.trim() !== '');
+                    if (diffLines.length === 0) {
+                        outputMessage.textContent = 'No differences found!';
+                        outputMessage.className = 'success';
+                    } else {
+                        outputMessage.textContent = 'Differences found:';
+                        outputMessage.className = 'success';
+                        outputTable.style.display = 'table';
+                        filterContainer.style.display = 'block';
+
+                        diffLines.forEach((line, index) => {
+                            const row = document.createElement('tr');
+                            const packetCell = document.createElement('td');
+                            const detailsCell = document.createElement('td');
+
+                            packetCell.textContent = `Packet ${index + 1}`;
+                            detailsCell.textContent = line;
+
+                            row.appendChild(packetCell);
+                            row.appendChild(detailsCell);
+                            outputTableBody.appendChild(row);
+                        });
+                    }
+                }
+            } catch (error) {
+                console.error('Error:', error);  // Debugging: Log any errors
+                outputMessage.textContent = 'An error occurred. Check the console for details.';
+                outputMessage.className = 'error';
+            }
+        });
+
+        // Filter Functionality
+        document.getElementById('applyFilter').addEventListener('click', () => {
+            const filterCriteria = document.getElementById('filterCriteria').value;
+            const filterInput = document.getElementById('filterInput').value.toLowerCase();
+            const rows = document.querySelectorAll('#outputTable tbody tr');
+
+            rows.forEach(row => {
+                const details = row.cells[1].textContent.toLowerCase();
+                if (filterCriteria === 'all' || details.includes(filterInput)) {
+                    row.style.display = '';
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+        });
+    </script>
+</body>
+</html>
