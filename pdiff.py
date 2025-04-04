@@ -206,25 +206,28 @@ def serialize(packet):
     """
     Serialize flattened packet
     """
+    def process_payload(payload):
+        if isinstance(payload, NoPayload):
+            return None
+        elif isinstance(payload, Packet):
+            return flatten(payload.__dict__, payload.__class__.__name__)
+        return payload
 
-    # remove mac addresses?
+    def process_fields(fields):
+        flat_packet = flatten(fields)
+        return flat_packet
+
+    # Remove MAC addresses if needed
     if ignore_macs and packet.fields:
-       if packet.fields.get("src"): del packet.fields["src"]
-       if packet.fields.get("dst"): del packet.fields["dst"]
-
-    if (ignore_source or ignore_source_mac) and packet.fields.get("fields"):
-        if packet.fields.get("src"): del packet.fields["src"]
+        packet.fields.pop("src", None)
+        packet.fields.pop("dst", None)
 
     if first_layer and packet.haslayer(first_layer):
-        flat_packet = flatten(packet[first_layer].fields)
+        flat_packet = process_fields(packet[first_layer].fields)
     else:
-        flat_packet = flatten(packet.fields)
+        flat_packet = process_fields(packet.fields)
 
-    serial = ""
-
-    for key in sorted(flat_packet):
-        serial += str(key) + ": " + str(flat_packet[key]) + " | "
-
+    serial = " | ".join(f"{key}: {value}" for key, value in sorted(flat_packet.items()))
     return serial
 
 def read_dump(pcap_file):
